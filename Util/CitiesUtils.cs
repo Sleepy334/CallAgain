@@ -7,6 +7,32 @@ namespace CallAgain
 {
     public class CitiesUtils
     {
+        public static void CalculateGuestVehicles(ushort buildingID, ref Building data, TransferManager.TransferReason material, ref int count, ref int cargo, ref int capacity, ref int outside)
+        {
+            VehicleManager instance = Singleton<VehicleManager>.instance;
+            ushort vehicleID = data.m_guestVehicles;
+            int num = 0;
+            while (vehicleID != (ushort)0)
+            {
+                if ((TransferManager.TransferReason)instance.m_vehicles.m_buffer[(int)vehicleID].m_transferType == material)
+                {
+                    int size;
+                    int max;
+                    instance.m_vehicles.m_buffer[(int)vehicleID].Info.m_vehicleAI.GetSize(vehicleID, ref instance.m_vehicles.m_buffer[(int)vehicleID], out size, out max);
+                    cargo += Mathf.Min(size, max);
+                    capacity += max;
+                    ++count;
+                    if ((instance.m_vehicles.m_buffer[(int)vehicleID].m_flags & (Vehicle.Flags.Importing | Vehicle.Flags.Exporting)) != ~(Vehicle.Flags.Created | Vehicle.Flags.Deleted | Vehicle.Flags.Spawned | Vehicle.Flags.Inverted | Vehicle.Flags.TransferToTarget | Vehicle.Flags.TransferToSource | Vehicle.Flags.Emergency1 | Vehicle.Flags.Emergency2 | Vehicle.Flags.WaitingPath | Vehicle.Flags.Stopped | Vehicle.Flags.Leaving | Vehicle.Flags.Arriving | Vehicle.Flags.Reversed | Vehicle.Flags.TakingOff | Vehicle.Flags.Flying | Vehicle.Flags.Landing | Vehicle.Flags.WaitingSpace | Vehicle.Flags.WaitingCargo | Vehicle.Flags.GoingBack | Vehicle.Flags.WaitingTarget | Vehicle.Flags.Importing | Vehicle.Flags.Exporting | Vehicle.Flags.Parking | Vehicle.Flags.CustomName | Vehicle.Flags.OnGravel | Vehicle.Flags.WaitingLoading | Vehicle.Flags.Congestion | Vehicle.Flags.DummyTraffic | Vehicle.Flags.Underground | Vehicle.Flags.Transition | Vehicle.Flags.InsideBuilding | Vehicle.Flags.LeftHandDrive))
+                        ++outside;
+                }
+                vehicleID = instance.m_vehicles.m_buffer[(int)vehicleID].m_nextGuestVehicle;
+                if (++num > 16384)
+                {
+                    CODebugBase<LogChannel>.Error(LogChannel.Core, "Invalid list detected!\n" + System.Environment.StackTrace);
+                    break;
+                }
+            }
+        }
         private static void AddCitizenToList(uint cim, ushort usBuildingId, Citizen.Flags flag, List<uint> cimList)
         {
             if (cim != 0)
@@ -313,6 +339,23 @@ namespace CallAgain
         public static bool IsOutsideConnection(Building building)
         {
             return (building.Info?.GetAI() is OutsideConnectionAI);
+        }
+
+        public static bool IsPedestrianZone(Building building)
+        {
+            if (building.m_accessSegment != 0)
+            {
+                NetSegment segment = NetManager.instance.m_segments.m_buffer[building.m_accessSegment];
+                if (segment.m_flags != 0)
+                {
+                    if (segment.Info != null && segment.Info.IsPedestrianZoneRoad())
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
     }
 }

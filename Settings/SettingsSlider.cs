@@ -15,7 +15,7 @@ namespace CallAgain
 		private float m_fValue;
 		private ICities.OnValueChanged? m_eventCallback = null;
 
-		public static SettingsSlider Create(UIHelper helper, string sText, float fMin, float fMax, float fStep, float fDefault, ICities.OnValueChanged eventCallback)
+		public static SettingsSlider Create(UIHelper helper, string sText, float fTextScale, float fMin, float fMax, float fStep, float fDefault, ICities.OnValueChanged eventCallback, int iLebelWidth = iSLIDER_LABEL_WIDTH)
 		{
 			
 			SettingsSlider oSlider = new SettingsSlider();
@@ -33,11 +33,20 @@ namespace CallAgain
 			if (oSlider.m_label != null)
 			{
 				oSlider.m_label.autoSize = false;
-				oSlider.m_label.width = iSLIDER_LABEL_WIDTH;
+				oSlider.m_label.width = iLebelWidth;
 				oSlider.m_label.text = oSlider.m_sText + ": " + fDefault;
+				oSlider.m_label.textScale = fTextScale;
 			}
 
 			return oSlider;
+		}
+
+		public void SetTooltip(string sTooltip)
+		{
+			if (m_slider != null)
+            {
+				m_slider.tooltip = sTooltip;
+			}
 		}
 
 		public void OnSliderValueChanged(float fValue)
@@ -63,6 +72,29 @@ namespace CallAgain
 			if (m_slider != null)
             {
 				m_slider.isEnabled = bEnable;
+			}
+		}
+
+		public void SetValue(float fValue)
+        {
+			if (m_slider != null)
+			{
+				m_slider.value = fValue;
+			}
+		}
+
+		public void Destroy()
+        {
+			if (m_label != null)
+            {
+				UnityEngine.Object.Destroy(m_label.gameObject);
+				m_label = null;
+
+			}
+			if (m_slider != null)
+			{
+				UnityEngine.Object.Destroy(m_slider.gameObject);
+				m_slider = null;
 			}
 		}
 	}

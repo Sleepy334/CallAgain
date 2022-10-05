@@ -9,6 +9,7 @@ namespace CallAgain
 {
     public class SettingsUI
     {
+        private UICheckBox? m_chkCallAgainEnabled = null;
         private SettingsSlider? m_CallAgainUpdateRateSlider = null;
         private SettingsSlider? m_oHealthcareThresholdSlider = null;
         private SettingsSlider? m_oHealthcareRateSlider = null;
@@ -20,10 +21,12 @@ namespace CallAgain
         private SettingsSlider? m_oGarbageRateSlider = null;
         private UICheckBox? m_checkDespawnCargoTrucks = null;
 
-        UILabel? m_txtHealthcare = null;
-        UILabel? m_txtDeathcare = null;
-        UILabel? m_txtGoods = null;
-        UILabel? m_txtGarbage = null;
+        private UILabel? m_txtHealthcare = null;
+        private UILabel? m_txtDeathcare = null;
+        private UILabel? m_txtGoods = null;
+        private UILabel? m_txtGarbage = null;
+
+        float fTEXT_SCALE = 1.0f;
 
         public SettingsUI()
         {
@@ -55,31 +58,42 @@ namespace CallAgain
             UIHelper groupLocalisation = (UIHelper)tabCallAgain.AddGroup(Localization.Get("GROUP_LOCALISATION"));
             groupLocalisation.AddDropdown(Localization.Get("dropdownLocalization"), Localization.GetLoadedLanguages(), Localization.GetLanguageIndexFromCode(oSettings.PreferredLanguage), OnLocalizationDropDownChanged);
 
-            tabCallAgain.AddCheckbox(Localization.Get("CallAgainEnabled"), oSettings.CallAgainEnabled, OnCallAgainChanged);
-            m_CallAgainUpdateRateSlider = SettingsSlider.Create(tabCallAgain, Localization.Get("sliderCallAgainUpdateRate"), 2f, 10f, 1f, (float)oSettings.CallAgainUpdateRate, OnCallAgainUpdateRateValueChanged);
-            UIScrollablePanel pnlPanel3 = (UIScrollablePanel)tabCallAgain.self;
-            UILabel txtLabel1 = AddDescription(pnlPanel3, "CallAgainDescriptionThreshold", pnlPanel3, 1.0f, Localization.Get("CallAgainDescriptionThreshold"));
-            UILabel txtLabel2 = AddDescription(pnlPanel3, "CallAgainDescriptionRate", pnlPanel3, 1.0f, Localization.Get("CallAgainDescriptionRate"));
+            UIHelper oGeneralGroup = (UIHelper)tabCallAgain.AddGroup(Localization.Get("GROUP_CALLAGAIN_GENERAL"));
+            m_chkCallAgainEnabled = (UICheckBox)oGeneralGroup.AddCheckbox(Localization.Get("CallAgainEnabled"), oSettings.CallAgainEnabled, OnCallAgainChanged);
+            m_CallAgainUpdateRateSlider = SettingsSlider.Create(oGeneralGroup, Localization.Get("sliderCallAgainUpdateRate"), fTEXT_SCALE, 2f, 10f, 1f, (float)oSettings.CallAgainUpdateRate, OnCallAgainUpdateRateValueChanged);
+            oGeneralGroup.AddButton(Localization.Get("buttonResetSettings"), OnResetClicked);
 
             // Health care threshold Slider
             UIHelper oHealthcareGroup = (UIHelper)tabCallAgain.AddGroup(Localization.Get("GROUP_CALLAGAIN_HEALTHCARE"));
-            m_oHealthcareThresholdSlider = SettingsSlider.Create(oHealthcareGroup, Localization.Get("CallAgainHealthcareThreshold"), 0f, 255f, 1f, (float)oSettings.HealthcareThreshold, OnHealthcareThresholdValueChanged);
-            m_oHealthcareRateSlider = SettingsSlider.Create(oHealthcareGroup, Localization.Get("CallAgainHealthcareRate"), 1f, 30f, 1f, (float)oSettings.HealthcareRate, OnHealthcareRateValueChanged);
+            UIPanel pnlPanelHealth = (UIPanel)oHealthcareGroup.self;
+            m_oHealthcareThresholdSlider = SettingsSlider.Create(oHealthcareGroup, Localization.Get("CallAgainHealthcareThreshold"), fTEXT_SCALE, 0f, 255f, 1f, (float)oSettings.HealthcareThreshold, OnHealthcareThresholdValueChanged);
+            AddDescription(pnlPanelHealth, "CallAgainDescriptionThreshold", pnlPanelHealth, 1.0f, Localization.Get("CallAgainDescriptionThreshold")); 
+            m_oHealthcareRateSlider = SettingsSlider.Create(oHealthcareGroup, Localization.Get("CallAgainHealthcareRate"), fTEXT_SCALE, 1f, 30f, 1f, (float)oSettings.HealthcareRate, OnHealthcareRateValueChanged);
+            AddDescription(pnlPanelHealth, "CallAgainDescriptionRate", pnlPanelHealth, 1.0f, Localization.Get("CallAgainDescriptionRate"));
 
             // Death care threshold Slider
             UIHelper oDeathcareGroup = (UIHelper)tabCallAgain.AddGroup(Localization.Get("GROUP_CALLAGAIN_DEATHCARE"));
-            m_oDeathcareThresholdSlider = SettingsSlider.Create(oDeathcareGroup, Localization.Get("CallAgainDeathcareThreshold"), 0f, 255f, 1f, (float)oSettings.DeathcareThreshold, OnDeathcareThresholdValueChanged);
-            m_oDeathcareRateSlider = SettingsSlider.Create(oDeathcareGroup, Localization.Get("CallAgainDeathcareRate"), 1f, 30f, 1f, (float)oSettings.DeathcareRate, OnDeathcareRateValueChanged);
+            UIPanel pnlPanelDeathcare = (UIPanel)oDeathcareGroup.self;
+            m_oDeathcareThresholdSlider = SettingsSlider.Create(oDeathcareGroup, Localization.Get("CallAgainDeathcareThreshold"), fTEXT_SCALE, 0f, 255f, 1f, (float)oSettings.DeathcareThreshold, OnDeathcareThresholdValueChanged);
+            AddDescription(pnlPanelDeathcare, "CallAgainDescriptionThreshold", pnlPanelDeathcare, 1.0f, Localization.Get("CallAgainDescriptionThreshold")); 
+            m_oDeathcareRateSlider = SettingsSlider.Create(oDeathcareGroup, Localization.Get("CallAgainDeathcareRate"), fTEXT_SCALE, 1f, 30f, 1f, (float)oSettings.DeathcareRate, OnDeathcareRateValueChanged);
+            AddDescription(pnlPanelDeathcare, "CallAgainDescriptionRate", pnlPanelDeathcare, 1.0f, Localization.Get("CallAgainDescriptionRate"));
 
             // Goods threshold Slider
             UIHelper oGoodsGroup = (UIHelper)tabCallAgain.AddGroup(Localization.Get("GROUP_CALLAGAIN_GOODS"));
-            m_oGoodsThresholdSlider = SettingsSlider.Create(oGoodsGroup, Localization.Get("CallAgainGoodsThreshold"), 0f, 255f, 1f, (float)oSettings.GoodsThreshold, OnGoodsThresholdValueChanged);
-            m_oGoodsRateSlider = SettingsSlider.Create(oGoodsGroup, Localization.Get("CallAgainGoodsRate"), 1f, 30f, 1f, (float)oSettings.GoodsRate, OnGoodsRateValueChanged);
+            UIPanel pnlPanelGoods = (UIPanel)oGoodsGroup.self;
+            m_oGoodsThresholdSlider = SettingsSlider.Create(oGoodsGroup, Localization.Get("CallAgainGoodsThreshold"), fTEXT_SCALE, 0f, 255f, 1f, (float)oSettings.GoodsThreshold, OnGoodsThresholdValueChanged);
+            AddDescription(pnlPanelGoods, "CallAgainDescriptionThreshold", pnlPanelGoods, 1.0f, Localization.Get("CallAgainDescriptionThreshold")); 
+            m_oGoodsRateSlider = SettingsSlider.Create(oGoodsGroup, Localization.Get("CallAgainGoodsRate"), fTEXT_SCALE, 1f, 30f, 1f, (float)oSettings.GoodsRate, OnGoodsRateValueChanged);
+            AddDescription(pnlPanelGoods, "CallAgainDescriptionRate", pnlPanelGoods, 1.0f, Localization.Get("CallAgainDescriptionRate"));
 
             // Garbage threshold Slider
             UIHelper oGarbageGroup = (UIHelper)tabCallAgain.AddGroup(Localization.Get("GROUP_CALLAGAIN_GARBAGE"));
-            m_oGarbageThresholdSlider = SettingsSlider.Create(oGarbageGroup, Localization.Get("CallAgainGarbageThreshold"), 1500f, 4000f, 1f, (float)oSettings.GarbageThreshold, OnGarbageThresholdValueChanged);
-            m_oGarbageRateSlider = SettingsSlider.Create(oGarbageGroup, Localization.Get("CallAgainGarbageRate"), 1f, 30f, 1f, (float)oSettings.GarbageRate, OnGarbageRateValueChanged);
+            UIPanel pnlPanelGarbage = (UIPanel)oGarbageGroup.self;
+            m_oGarbageThresholdSlider = SettingsSlider.Create(oGarbageGroup, Localization.Get("CallAgainGarbageThreshold"), fTEXT_SCALE, 1500f, 4000f, 1f, (float)oSettings.GarbageThreshold, OnGarbageThresholdValueChanged);
+            AddDescription(pnlPanelGarbage, "CallAgainDescriptionThreshold", pnlPanelGarbage, 1.0f, Localization.Get("CallAgainDescriptionThreshold")); 
+            m_oGarbageRateSlider = SettingsSlider.Create(oGarbageGroup, Localization.Get("CallAgainGarbageRate"), fTEXT_SCALE, 1f, 30f, 1f, (float)oSettings.GarbageRate, OnGarbageRateValueChanged);
+            AddDescription(pnlPanelGarbage, "CallAgainDescriptionRate", pnlPanelGarbage, 1.0f, Localization.Get("CallAgainDescriptionRate"));
 
             UIHelper oCaroStationGroup = (UIHelper)tabCallAgain.AddGroup(Localization.Get("GROUP_CALLAGAIN_CARGOSTATION"));
             m_checkDespawnCargoTrucks = (UICheckBox)oCaroStationGroup.AddCheckbox(Localization.Get("DespawnReturningCargoTrucks"), oSettings.DespawnReturningCargoTrucks, OnDespawnReturningCargoTrucksChanged);
@@ -90,12 +104,11 @@ namespace CallAgain
         public void SetupStatisticsTab(UIHelper tabStatistics)
         {
             UIScrollablePanel pnlPanel = (UIScrollablePanel)tabStatistics.self;
-            m_txtHealthcare = AddDescription(pnlPanel, "StatisticsHealthcare", pnlPanel, 1.0f, "Healthcare callbacks: " + CallAgainStats.s_CallbackStats[TransferManager.TransferReason.Sick]);
-            m_txtDeathcare = AddDescription(pnlPanel, "StatisticsDeathcare", pnlPanel, 1.0f, "Deathcare callbacks: " + CallAgainStats.s_CallbackStats[TransferManager.TransferReason.Dead]);
-            m_txtGoods = AddDescription(pnlPanel, "StatisticsGoods", pnlPanel, 1.0f, "Goods callbacks: " + CallAgainStats.s_CallbackStats[TransferManager.TransferReason.Goods]);
-            m_txtGarbage = AddDescription(pnlPanel, "StatisticsGarbage", pnlPanel, 1.0f, "Garbage callbacks: " + CallAgainStats.s_CallbackStats[TransferManager.TransferReason.Garbage]);
+            m_txtHealthcare = AddDescription(pnlPanel, "StatisticsHealthcare", pnlPanel, 1.0f, "Healthcare callbacks: " + CallAgainStats.GetCallCount(TransferManager.TransferReason.Sick));
+            m_txtDeathcare = AddDescription(pnlPanel, "StatisticsDeathcare", pnlPanel, 1.0f, "Deathcare callbacks: " + CallAgainStats.GetCallCount(TransferManager.TransferReason.Dead));
+            m_txtGoods = AddDescription(pnlPanel, "StatisticsGoods", pnlPanel, 1.0f, "Goods callbacks: " + CallAgainStats.GetCallCount(TransferManager.TransferReason.Goods));
+            m_txtGarbage = AddDescription(pnlPanel, "StatisticsGarbage", pnlPanel, 1.0f, "Garbage callbacks: " + CallAgainStats.GetCallCount(TransferManager.TransferReason.Garbage));
         }
-
         /* 
          * Code adapted from PropAnarchy under MIT license
          */
@@ -114,23 +127,42 @@ namespace CallAgain
             return desc;
         }
 
+        public void OnResetClicked()
+        {
+            ModSettings.ResetSettings();
+            CallAgainStats.Init();
+
+            // Update fields
+            ModSettings oSettings = ModSettings.GetSettings();
+            m_chkCallAgainEnabled.isChecked = oSettings.CallAgainEnabled;
+            m_CallAgainUpdateRateSlider.SetValue(oSettings.CallAgainUpdateRate);
+            m_oHealthcareThresholdSlider.SetValue(oSettings.HealthcareThreshold);
+            m_oHealthcareRateSlider.SetValue(oSettings.HealthcareRate);
+            m_oDeathcareThresholdSlider.SetValue(oSettings.DeathcareThreshold);
+            m_oDeathcareRateSlider.SetValue(oSettings.DeathcareRate);
+            m_oGoodsThresholdSlider.SetValue(oSettings.GoodsThreshold);
+            m_oGoodsRateSlider.SetValue(oSettings.GoodsRate);
+            m_oGarbageThresholdSlider.SetValue(oSettings.GarbageThreshold);
+            m_oGarbageRateSlider.SetValue(oSettings.GarbageRate);
+        }
+
         public void UpdateStatistics()
         {
             if (m_txtHealthcare != null)
             {
-                m_txtHealthcare.text = "Healthcare callbacks: " + CallAgainStats.s_CallbackStats[TransferManager.TransferReason.Sick];
+                m_txtHealthcare.text = "Healthcare callbacks: " + CallAgainStats.GetCallCount(TransferManager.TransferReason.Sick);
             }
             if (m_txtDeathcare != null)
             {
-                m_txtDeathcare.text = "Deathcare callbacks: " + CallAgainStats.s_CallbackStats[TransferManager.TransferReason.Dead];
+                m_txtDeathcare.text = "Deathcare callbacks: " + CallAgainStats.GetCallCount(TransferManager.TransferReason.Dead);
             }
             if (m_txtGoods != null)
             {
-                m_txtGoods.text = "Goods callbacks: " + CallAgainStats.s_CallbackStats[TransferManager.TransferReason.Goods];
+                m_txtGoods.text = "Goods callbacks: " + CallAgainStats.GetCallCount(TransferManager.TransferReason.Goods);
             }
             if (m_txtGarbage != null)
             {
-                m_txtGarbage.text = "Garbage callbacks: " + CallAgainStats.s_CallbackStats[TransferManager.TransferReason.Garbage];
+                m_txtGarbage.text = "Garbage callbacks: " + CallAgainStats.GetCallCount(TransferManager.TransferReason.Garbage);
             }
         }
 

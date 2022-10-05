@@ -70,58 +70,72 @@ namespace CallAgain
 
         public static void AddOutgoingOffersCheckExisting(Dictionary<TransferReason, List<TransferOffer>> issues)
         {
-            // Now check the transfer offers arent already in Transfer Manager before sending offers.
-#if DEBUG
-            string sMessage = "";
-#endif
-            foreach (KeyValuePair<TransferReason, List<TransferOffer>> issue in issues)
-            {
-                
-                List<TransferOffer> offers = CallAgainUtils.RemoveExisitingOutgoingOffers(issue.Key, issue.Value);
-                foreach (TransferOffer offer in offers)
-                {
-#if DEBUG
-                    sMessage += $"\r\n{issue.Key} - {CallAgainUtils.DebugOffer(offer)}";
-#endif
-                    TransferManager.instance.AddOutgoingOffer(issue.Key, offer);
-                    CallAgainStats.s_CallbackStats[issue.Key]++;
-                }
+            TransferManager instance = Singleton<TransferManager>.instance;
 
-            }
-#if DEBUG
-            if (sMessage.Length > 0)
+            // Now check the transfer offers arent already in Transfer Manager before sending offers.
+            if (issues != null)
             {
-                Debug.Log("CALL AGAIN - Adding transfer offers for: " + sMessage);
-            }
+#if DEBUG
+                string sMessage = "";
 #endif
+                foreach (KeyValuePair<TransferReason, List<TransferOffer>> issue in issues)
+                {
+
+                    List<TransferOffer> offers = CallAgainUtils.RemoveExisitingOutgoingOffers(issue.Key, issue.Value);
+                    if (offers != null)
+                    {
+                        foreach (TransferOffer offer in offers)
+                        {
+#if DEBUG
+                            sMessage += $"\r\n{issue.Key} - {CallAgainUtils.DebugOffer(offer)}";
+#endif
+                            instance.AddOutgoingOffer(issue.Key, offer);
+                            CallAgainStats.AddCall(issue.Key);
+                        }
+                    }
+                }
+#if DEBUG
+                if (sMessage.Length > 0)
+                {
+                    Debug.Log("CALL AGAIN - Adding transfer offers for: " + sMessage);
+                }
+#endif
+            }
         }
 
         public static void AddIncomingOffersCheckExisting(Dictionary<TransferReason, List<TransferOffer>> issues)
         {
+            TransferManager instance = Singleton<TransferManager>.instance;
+
             // Now check the transfer offers arent already in Transfer Manager before sending offers.
-#if DEBUG
-            string sMessage = "";
-#endif
-            foreach (KeyValuePair<TransferReason, List<TransferOffer>> issue in issues)
+            if (issues != null)
             {
-
-                List<TransferOffer> offers = CallAgainUtils.RemoveExisitingIncomingOffers(issue.Key, issue.Value);
-                foreach (TransferOffer offer in offers)
+#if DEBUG
+                string sMessage = "";
+#endif
+                foreach (KeyValuePair<TransferReason, List<TransferOffer>> issue in issues)
                 {
-#if DEBUG
-                    sMessage += $"\r\n{issue.Key} - {CallAgainUtils.DebugOffer(offer)}";
-#endif
-                    TransferManager.instance.AddIncomingOffer(issue.Key, offer);
-                    CallAgainStats.s_CallbackStats[issue.Key]++;
-                }
 
-            }
+                    List<TransferOffer> offers = CallAgainUtils.RemoveExisitingIncomingOffers(issue.Key, issue.Value);
+                    if (offers != null)
+                    {
+                        foreach (TransferOffer offer in offers)
+                        {
 #if DEBUG
-            if (sMessage.Length > 0)
-            {
-                Debug.Log("CALL AGAIN - Adding transfer offers for: " + sMessage);
-            }
+                            sMessage += $"\r\n{issue.Key} - {CallAgainUtils.DebugOffer(offer)}";
 #endif
+                            instance.AddIncomingOffer(issue.Key, offer);
+                            CallAgainStats.AddCall(issue.Key);
+                        }
+                    }
+                }
+#if DEBUG
+                if (sMessage.Length > 0)
+                {
+                    Debug.Log("CALL AGAIN - Adding transfer offers for: " + sMessage);
+                }
+#endif
+            }
         }
 
         public List<TransferOffer> CheckHealthTimer(ushort usBuilding, Building building)
@@ -143,19 +157,17 @@ namespace CallAgain
                     }
 
                     // Call if no ambulances on the way and it has been HealthcareRate since last time we called
-                    if ((building.m_healthProblemTimer - iLastCallTimer) > ModSettings.GetSettings().HealthcareRate && CitiesUtils.GetAmbulancesOnRoute(usBuilding).Count == 0)
+                    if ((building.m_healthProblemTimer - iLastCallTimer) > ModSettings.GetSettings().HealthcareRate && 
+                        CitiesUtils.GetAmbulancesOnRoute(usBuilding).Count == 0)
                     {
-                        // Create outgoing offers for each
-                        foreach (uint cim in cimSick)
-                        {
-                            TransferOffer offer = default(TransferOffer);
-                            offer.Citizen = cim;
-                            offer.Active = false;
-                            offer.Amount = 1;
-                            offer.Priority = 7; // Highest
-                            offer.Position = building.m_position;
-                            list.Add(offer);
-                        }
+                        // We only add 1 at a time so it is more realistic
+                        TransferOffer offer = default(TransferOffer);
+                        offer.Citizen = cimSick[0];
+                        offer.Active = false;
+                        offer.Amount = 1;
+                        offer.Priority = building.m_healthProblemTimer * 7 / 128;
+                        offer.Position = building.m_position;
+                        list.Add(offer);
 
                         iLastCallTimer = building.m_healthProblemTimer;
                         iRetries++;
@@ -174,39 +186,6 @@ namespace CallAgain
             }
 
             return list;
-        }
-
-        public static int GetDeadPriority(int iTimer)
-        {
-            if (iTimer >= 128)
-            {
-                return 7;
-            } 
-            else if (iTimer >= 110)
-            {
-                return 6;
-            }
-            else if (iTimer >= 91)
-            {
-                return 5;
-            }
-            else if (iTimer >= 74)
-            {
-                return 4;
-            }
-            else if (iTimer >= 55)
-            {
-                return 3;
-            }
-            else if (iTimer >= 37)
-            {
-                return 2;
-            }
-            else if (iTimer >= 19)
-            {
-                return 1;
-            }
-            return 0;
         }
 
         public List<TransferOffer> CheckDeathTimer(ushort usBuilding, Building building)
@@ -228,21 +207,19 @@ namespace CallAgain
                     }
 
                     // Call if no ambulances on the way and it has been DeathcareRate since last time we called
-                    if ((building.m_deathProblemTimer - iLastCallTimer) > ModSettings.GetSettings().DeathcareRate && CitiesUtils.GetHearsesOnRoute(usBuilding).Count == 0)
+                    if ((building.m_deathProblemTimer - iLastCallTimer) > ModSettings.GetSettings().DeathcareRate && 
+                        CitiesUtils.GetHearsesOnRoute(usBuilding).Count == 0)
                     {
-                        // Create outgoing offers for each
-                        foreach (uint cim in cimDead)
-                        {
-                            TransferOffer offer = default(TransferOffer);
-                            offer.Citizen = cim;
-                            offer.Active = false;
-                            offer.Amount = 1;
-                            offer.Priority = GetDeadPriority(building.m_deathProblemTimer); // Highest
-                            offer.Position = building.m_position;
-                            list.Add(offer);
-                        }
+                        // We only add 1 at a time so it is more realistic
+                        TransferOffer offer = default(TransferOffer);
+                        offer.Citizen = cimDead[0];
+                        offer.Active = false;
+                        offer.Amount = 1;
+                        offer.Priority = building.m_deathProblemTimer * 7 / 128;
+                        offer.Position = building.m_position;
+                        list.Add(offer);
 
-                        iLastCallTimer = building.m_healthProblemTimer;
+                        iLastCallTimer = building.m_deathProblemTimer;
                         iRetries++;
 
                         // Update data
@@ -279,7 +256,8 @@ namespace CallAgain
 
                 // Call if no cargo trucks on the way and it has been GoodsRate since last time we called
                 if ((building.m_incomingProblemTimer - iLastCallTimer) > ModSettings.GetSettings().GoodsRate &&
-                    !CitiesUtils.IsOutsideConnection(building) && 
+                    !CitiesUtils.IsOutsideConnection(building) &&
+                    !CitiesUtils.IsPedestrianZone(building) &&
                     CitiesUtils.GetGoodsTrucksOnRoute(usBuilding).Count == 0)
                 {
                     // Create incoming offers for each
@@ -308,38 +286,6 @@ namespace CallAgain
             return list;
         }
 
-        public static int GetGarbagePriority(int iGarbageBuffer)
-        {
-            if (iGarbageBuffer >= 7000)
-            {
-                return 7;
-            }
-            else if (iGarbageBuffer >= 6000)
-            {
-                return 6;
-            }
-            else if (iGarbageBuffer >= 5000)
-            {
-                return 5;
-            }
-            else if (iGarbageBuffer >= 4000)
-            {
-                return 4;
-            }
-            else if (iGarbageBuffer >= 3000)
-            {
-                return 3;
-            }
-            else if (iGarbageBuffer >= 2000)
-            {
-                return 2;
-            }
-            else if (iGarbageBuffer >= 1000)
-            {
-                return 1;
-            }
-            return 0;
-        }
         public List<TransferOffer> CheckGarbage(ushort usBuilding, Building building, Stopwatch watch)
         {
             List<TransferOffer> list = new List<TransferOffer>();
@@ -358,6 +304,7 @@ namespace CallAgain
 
                 // Call if no garbage trucks on the way and it has been GoodsRate since last time we called
                 if ((watch.ElapsedMilliseconds - iLastCallTimer) > ModSettings.GetSettings().GarbageRate * 1000 &&
+                    !CitiesUtils.IsPedestrianZone(building) &&
                     CitiesUtils.GetGarbageTrucksOnRoute(usBuilding).Count == 0)
                 {
                     // Create outgoing offers for building
@@ -365,7 +312,7 @@ namespace CallAgain
                     offer.Building = usBuilding;
                     offer.Active = false;
                     offer.Amount = 1;
-                    offer.Priority = GetGarbagePriority(building.m_garbageBuffer); // Highest
+                    offer.Priority = building.m_garbageBuffer / 1000;
                     offer.Position = building.m_position;
                     list.Add(offer);
 
@@ -406,19 +353,17 @@ namespace CallAgain
                     var manager = Singleton<VehicleManager>.instance;
                     foreach (ushort vehicleId in vehiclesToDespawn)
                     {
-                        try
-                        {
-                            // Try direct call.
-                            manager.ReleaseVehicle(vehicleId);
-                        }
-                        catch (Exception ex)
-                        {
-                            // If we fail (because it is a target vehicle or similar), try adding using AddAction to despawn it at a later date.
-                            Debug.LogError("Calling AddAction " + vehicleId + " Error:" + ex.Message);
-
-                            // Add action so it is thread safe
-                            Singleton<SimulationManager>.instance.AddAction(() => manager.ReleaseVehicle(vehicleId));
-                        }
+                        // Add action so it is thread safe
+#if DEBUG
+                        Debug.Log("Releasing vehicle: " + vehicleId);
+#endif
+                        // Create object on heap rather than stack to ensure it is still valid when ReleaseVehicle call occurs
+                        InstanceID vehicleInstance = new InstanceID { Vehicle = vehicleId };
+                        Singleton<SimulationManager>.instance.AddAction(() => 
+                            {
+                                Singleton<VehicleManager>.instance.ReleaseVehicle(vehicleInstance.Vehicle);
+                            }
+                        );
                     }
                 }
             } 

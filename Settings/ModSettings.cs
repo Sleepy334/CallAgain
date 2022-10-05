@@ -21,6 +21,12 @@ namespace CallAgain.Settings
             return s_settings;
         }
 
+        public static void ResetSettings()
+        {
+            s_settings = new ModSettings();
+            s_settings.Save();
+        }
+
         [XmlIgnore]
         const string SETTINGS_FILE_NAME = "CallAgainSettings";
 

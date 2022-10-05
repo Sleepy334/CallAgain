@@ -6,6 +6,7 @@
 "dropdownLocalization","Language"
 "tabCallAgain","CallAgain"
 "tabStatistics","Statistics"
+"GROUP_CALLAGAIN_GENERAL","General"
 "CallAgainEnabled","Enable Call Again"
 "sliderCallAgainUpdateRate","Call Again update rate"
 "CallAgainDescriptionThreshold","Threshold: Lower thresholds start calling sooner."
@@ -24,3 +25,5 @@
 "CallAgainGarbageRate","Garbage Callback Rate"
 "GROUP_CALLAGAIN_CARGOSTATION","Cargo Station"
 "DespawnReturningCargoTrucks","Automatically despawn returning cargo trucks"
+"ScalePriority","Scale Priority Based On Timer Value"
+"buttonResetSettings","Reset Settings"

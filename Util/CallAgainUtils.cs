@@ -18,7 +18,6 @@ namespace CallAgain
                 // Reflect transfer offer fields.
                 FieldInfo outgoingOfferField = typeof(TransferManager).GetField("m_outgoingOffers", BindingFlags.Instance | BindingFlags.NonPublic);
                 FieldInfo outgoingCountField = typeof(TransferManager).GetField("m_outgoingCount", BindingFlags.NonPublic | BindingFlags.Instance);
-
                 TransferOffer[] outgoingOffers = (TransferOffer[])outgoingOfferField.GetValue(manager);
                 ushort[] outgoingCount = (ushort[])outgoingCountField.GetValue(manager);
 
@@ -37,8 +36,8 @@ namespace CallAgain
                             // Check against list of new offers
                             foreach (TransferOffer offerSearch in newOutgoingOffers)
                             {
-                                // Currently just checking Citizen
-                                if (offerSearch.Citizen == offer.Citizen && !existing.Contains(offerSearch))
+                                // Check if offer already exists
+                                if (offerSearch.m_object == offer.m_object && !existing.Contains(offerSearch))
                                 {
 #if DEBUG
                                 Debug.Log($"CALL AGAIN: Existing transfer offer {CallAgainUtils.DebugOffer(offer)} DETECTED");
@@ -67,7 +66,6 @@ namespace CallAgain
                 // Reflect transfer offer fields.
                 FieldInfo incomingOfferField = typeof(TransferManager).GetField("m_incomingOffers", BindingFlags.Instance | BindingFlags.NonPublic);
                 FieldInfo incomingCountField = typeof(TransferManager).GetField("m_incomingCount", BindingFlags.NonPublic | BindingFlags.Instance);
-
                 TransferOffer[] incomingOffers = (TransferOffer[])incomingOfferField.GetValue(manager);
                 ushort[] incomingCount = (ushort[])incomingCountField.GetValue(manager);
 
@@ -86,8 +84,8 @@ namespace CallAgain
                             // Check against list of new offers
                             foreach (TransferOffer offerSearch in newIncomingOffers)
                             {
-                                // Currently just checking Citizen
-                                if (offerSearch.Citizen == offer.Citizen && !existing.Contains(offerSearch))
+                                // Check if offer already exists
+                                if (offerSearch.m_object == offer.m_object && !existing.Contains(offerSearch))
                                 {
 #if DEBUG
                                 Debug.Log($"CALL AGAIN: Existing transfer offer {CallAgainUtils.DebugOffer(offer)} DETECTED");
@@ -109,39 +107,19 @@ namespace CallAgain
 
         public static string DebugOffer(TransferOffer offer)
         {
-            string sMessage = "";
-            sMessage += "Priority:" + offer.Priority;
-            sMessage += "Active:" + offer.Active;
-            sMessage += "Exclude:" + offer.Exclude;
+            string sMessage = $"{offer.m_object.Type} {offer.m_object.Index}";
+            sMessage += " Priority:" + offer.Priority;
+            if (offer.Active)
+            {
+                sMessage += " Active";
+            }
+            else
+            {
+                sMessage += " Passive";
+            }
+            sMessage += " Exclude:" + offer.Exclude;
             sMessage += " Amount: " + offer.Amount;
-            if (offer.Building > 0 && offer.Building < BuildingManager.instance.m_buildings.m_size)
-            {
-                var instB = default(InstanceID);
-                instB.Building = offer.Building;
-                sMessage += " (" + offer.Building + ")" + BuildingManager.instance.m_buildings.m_buffer[offer.Building].Info?.name + "(" + InstanceManager.instance.GetName(instB) + ")";
-            }
-            if (offer.Vehicle > 0 && offer.Vehicle < VehicleManager.instance.m_vehicles.m_size)
-            {
-                sMessage += " (" + offer.Vehicle + ")" + VehicleManager.instance.m_vehicles.m_buffer[offer.Vehicle].Info?.name;
-            }
-            if (offer.Citizen > 0)
-            {
-                sMessage += $" Citizen:{offer.Citizen}";
-                Citizen oCitizen = CitizenManager.instance.m_citizens.m_buffer[offer.Citizen];
-                sMessage += $" Building:{oCitizen.GetBuildingByLocation()}";
-            }
-            if (offer.NetSegment > 0)
-            {
-                sMessage += $" NetSegment={offer.NetSegment}";
-            }
-            if (offer.TransportLine > 0)
-            {
-                sMessage += $" TransportLine={offer.TransportLine}";
-            }
-            if (sMessage.Length == 0)
-            {
-                sMessage = " unknown";
-            }
+            sMessage += " Park: " + offer.Park;
             return sMessage;
         }
     }
