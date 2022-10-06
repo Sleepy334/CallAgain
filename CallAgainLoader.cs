@@ -33,12 +33,16 @@ namespace CallAgain
 
                 // Patch game using Harmony
                 ApplyHarmonyPatches();
+
+                CallAgainThread.StartThreads();
             }
         }
 
         public override void OnLevelUnloading()
         {
             base.OnLevelUnloading();
+
+            CallAgainThread.StopThreads();
         }
 
         public bool ApplyHarmonyPatches()

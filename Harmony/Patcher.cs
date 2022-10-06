@@ -35,6 +35,10 @@ namespace CallAgain
                     patchList.Add(typeof(Patch.CommonBuildingAIPatch));
                 }
 
+                // Despawn returning trucks patches
+                patchList.Add(typeof(Patch.CargoTruckAISimulationStepPatch));
+                patchList.Add(typeof(Patch.PostVanAISimulationStepPatch)); 
+
                 s_iHarmonyPatches = patchList.Count;
 
                 if (patchList.Count > 0)

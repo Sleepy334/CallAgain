@@ -1,64 +1,72 @@
 using CallAgain.Settings;
+using ColossalFramework;
 using ICities;
 using System.Diagnostics;
+using System.Threading;
 
 namespace CallAgain
 {
-    public class CallAgainThread : ThreadingExtensionBase
+    public class CallAgainThread
     {
-        private long m_LastCallAgainElapsedTime = 0;
-        private Stopwatch? m_watch = null;
-        public static CallAgain? s_callAgain = null;
+        public static CallAgain? m_callAgain = null;
+        private static volatile bool s_runThread = true;
+        private static Thread? s_callAgainThread = null;
+        private static EventWaitHandle? s_waitHandle = null;
 
-        public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
+        public static void StartThreads()
         {
-            if (!CallAgainLoader.IsLoaded())
+            if (s_callAgainThread == null)
             {
-                return;
-            }
+                s_runThread = true;
 
-            if (m_watch == null)
-            {
-                m_watch = new Stopwatch();
-            }
+                // AutoResetEvent releases 1 thread only each time Set() is called.
+                s_waitHandle = new AutoResetEvent(false);
 
-            // Update panel
-            if (SimulationManager.instance.SimulationPaused)
-            {
-                if (m_watch.IsRunning)
-                {
-                    m_watch.Stop();
-                    m_LastCallAgainElapsedTime = 0;
-                }
-            }
-            else
-            {
-                if (!m_watch.IsRunning)
-                {
-                    m_watch.Start();
-                    m_LastCallAgainElapsedTime = m_watch.ElapsedMilliseconds;
-                }
-
-                // Call again
-                if (ModSettings.GetSettings().CallAgainEnabled && (m_watch.ElapsedMilliseconds - m_LastCallAgainElapsedTime > (ModSettings.GetSettings().CallAgainUpdateRate * 1000)))
-                {
-                    if (s_callAgain == null)
-                    {
-                        s_callAgain = new CallAgain();
-                    }
-                    if (s_callAgain != null)
-                    {
-                        s_callAgain.Update(m_watch);
-                    }
-
-                    m_LastCallAgainElapsedTime = m_watch.ElapsedMilliseconds;
-                }
+                s_callAgainThread = new Thread(new CallAgainThread().ThreadMain);
+                s_callAgainThread.IsBackground = true;
+                s_callAgainThread.Start();
             }
         }
 
-        public override void OnReleased()
+        public static void StopThreads()
         {
-            base.OnReleased();
+            s_runThread = false;
+            if (s_waitHandle != null)
+            {
+                s_waitHandle.Set();
+            }
+            s_waitHandle = null;
+        }
+
+        public CallAgainThread()
+        {
+
+        }
+
+        public void ThreadMain()
+        {
+            SimulationManager instance = Singleton<SimulationManager>.instance;
+            while (s_runThread)
+            {
+                // Wait for CallAgainUpdateRate timeout
+                if (s_waitHandle != null)
+                {
+                    s_waitHandle.WaitOne(ModSettings.GetSettings().CallAgainUpdateRate * 1000);
+                }
+
+                // Call again
+                if (s_runThread && !instance.SimulationPaused && ModSettings.GetSettings().CallAgainEnabled)
+                {
+                    if (m_callAgain == null)
+                    {
+                        m_callAgain = new CallAgain();
+                    }
+                    if (m_callAgain != null)
+                    {
+                        m_callAgain.Update();
+                    }
+                }
+            }
         }
     }
 }

@@ -5,7 +5,7 @@ namespace CallAgain
 {
     public class CallAgainMain : IUserMod
 	{
-		private static string Version = "v1.4.1"; 
+		private static string Version = "v1.5"; 
 #if TEST_RELEASE || TEST_DEBUG
 		public static string ModName => "TransferManager CE " + Version + " TEST";
 		public static string Title => ModName;

@@ -15,22 +15,28 @@ namespace CallAgain
 
     public class CallAgain
     {
-        private Dictionary<ushort, CallAgainData> m_Healthcalls = new Dictionary<ushort, CallAgainData>();
-        private Dictionary<ushort, CallAgainData> m_Deathcalls = new Dictionary<ushort, CallAgainData>();
-        private Dictionary<ushort, CallAgainData> m_Goodscalls = new Dictionary<ushort, CallAgainData>();
-        private Dictionary<ushort, CallAgainData> m_Garbagecalls = new Dictionary<ushort, CallAgainData>();
+        private Dictionary<ushort, CallAgainData> m_Healthcalls;
+        private Dictionary<ushort, CallAgainData> m_Deathcalls;
+        private Dictionary<ushort, CallAgainData> m_Goodscalls;
+        private Dictionary<ushort, CallAgainData> m_Garbagecalls;
+        TransferManagerCheckOffers m_checkOffers;
+        Stopwatch m_watch;
 
         public CallAgain()
         {
-
+            m_Healthcalls = new Dictionary<ushort, CallAgainData>();
+            m_Deathcalls = new Dictionary<ushort, CallAgainData>();
+            m_Goodscalls = new Dictionary<ushort, CallAgainData>();
+            m_Garbagecalls = new Dictionary<ushort, CallAgainData>();
+            m_checkOffers = new TransferManagerCheckOffers();
+            m_watch = Stopwatch.StartNew();
         }
 
-        public void Update(Stopwatch watch)
+        public void Update()
         {
 #if DEBUG
-            long lStartTime = watch.ElapsedMilliseconds;
+            long lStartTime = m_watch.ElapsedMilliseconds;
 #endif
-
             Dictionary<TransferReason, List<TransferOffer>> issueOutgoingList = new Dictionary<TransferReason, List<TransferOffer>>();
             issueOutgoingList[TransferReason.Sick] = new List<TransferOffer>();
             issueOutgoingList[TransferReason.Dead] = new List<TransferOffer>();
@@ -39,40 +45,29 @@ namespace CallAgain
             Dictionary<TransferReason, List<TransferOffer>> issueIncomingList = new Dictionary<TransferReason, List<TransferOffer>>();
             issueIncomingList[TransferReason.Goods] = new List<TransferOffer>();
 
-
-            bool bDespawnReturningCargoTrucks = ModSettings.GetSettings().DespawnReturningCargoTrucks;
-
             for (int i = 0; i < BuildingManager.instance.m_buildings.m_buffer.Length; i++)
             {
                 Building building = BuildingManager.instance.m_buildings.m_buffer[i];
-
+                
                 // Outgoing
                 issueOutgoingList[TransferReason.Sick].AddRange(CheckHealthTimer((ushort)i, building));
                 issueOutgoingList[TransferReason.Dead].AddRange(CheckDeathTimer((ushort)i, building));
-                issueOutgoingList[TransferReason.Garbage].AddRange(CheckGarbage((ushort)i, building, watch));
+                issueOutgoingList[TransferReason.Garbage].AddRange(CheckGarbage((ushort)i, building, m_watch));
 
                 // Incoming
                 issueIncomingList[TransferReason.Goods].AddRange(CheckGoodsTimer((ushort)i, building));
-
-                if (bDespawnReturningCargoTrucks)
-                {
-                    DespawnReturningCargoTrucks((ushort)i, building);
-                }
             }
 
             AddOutgoingOffersCheckExisting(issueOutgoingList);
             AddIncomingOffersCheckExisting(issueIncomingList);
 #if DEBUG
-            long lStopTime = watch.ElapsedMilliseconds;
+            long lStopTime = m_watch.ElapsedMilliseconds;
             Debug.Log("CallAgain - Execution Time: " + (lStopTime - lStartTime) + "ms");
 #endif
         }
 
-        public static void AddOutgoingOffersCheckExisting(Dictionary<TransferReason, List<TransferOffer>> issues)
+        public void AddOutgoingOffersCheckExisting(Dictionary<TransferReason, List<TransferOffer>> issues)
         {
-            TransferManager instance = Singleton<TransferManager>.instance;
-
-            // Now check the transfer offers arent already in Transfer Manager before sending offers.
             if (issues != null)
             {
 #if DEBUG
@@ -80,18 +75,27 @@ namespace CallAgain
 #endif
                 foreach (KeyValuePair<TransferReason, List<TransferOffer>> issue in issues)
                 {
-
-                    List<TransferOffer> offers = CallAgainUtils.RemoveExisitingOutgoingOffers(issue.Key, issue.Value);
+                    List<TransferOffer> offers = new List<TransferOffer>(issue.Value);
+                    TransferReason material = issue.Key;
                     if (offers != null)
                     {
+                        // Now check the transfer offers arent already in Transfer Manager before sending offers.
+                        m_checkOffers.RemoveExisitingOutgoingOffers(issue.Key, ref offers);
+
+                        // Now add them to TransferManager
                         foreach (TransferOffer offer in offers)
                         {
 #if DEBUG
                             sMessage += $"\r\n{issue.Key} - {CallAgainUtils.DebugOffer(offer)}";
 #endif
-                            instance.AddOutgoingOffer(issue.Key, offer);
+                            // Use AddAction so its thread safe
+                            Singleton<SimulationManager>.instance.AddAction(() =>
+                                {
+                                    Singleton<TransferManager>.instance.AddOutgoingOffer(material, offer);
+                                }
+                            );
                             CallAgainStats.AddCall(issue.Key);
-                        }
+                        } 
                     }
                 }
 #if DEBUG
@@ -103,11 +107,8 @@ namespace CallAgain
             }
         }
 
-        public static void AddIncomingOffersCheckExisting(Dictionary<TransferReason, List<TransferOffer>> issues)
+        public void AddIncomingOffersCheckExisting(Dictionary<TransferReason, List<TransferOffer>> issues)
         {
-            TransferManager instance = Singleton<TransferManager>.instance;
-
-            // Now check the transfer offers arent already in Transfer Manager before sending offers.
             if (issues != null)
             {
 #if DEBUG
@@ -115,16 +116,23 @@ namespace CallAgain
 #endif
                 foreach (KeyValuePair<TransferReason, List<TransferOffer>> issue in issues)
                 {
-
-                    List<TransferOffer> offers = CallAgainUtils.RemoveExisitingIncomingOffers(issue.Key, issue.Value);
+                    List<TransferOffer> offers = issue.Value;
                     if (offers != null)
                     {
+                        // Now check the transfer offers arent already in Transfer Manager before sending offers.
+                        m_checkOffers.RemoveExisitingIncomingOffers(issue.Key, ref offers);
+                        TransferReason material = issue.Key;
+
                         foreach (TransferOffer offer in offers)
                         {
 #if DEBUG
                             sMessage += $"\r\n{issue.Key} - {CallAgainUtils.DebugOffer(offer)}";
 #endif
-                            instance.AddIncomingOffer(issue.Key, offer);
+                            // Use AddAction so its thread safe
+                            Singleton<SimulationManager>.instance.AddAction(() =>
+                            {
+                                Singleton<TransferManager>.instance.AddIncomingOffer(material, offer);
+                            });
                             CallAgainStats.AddCall(issue.Key);
                         }
                     }
@@ -328,45 +336,6 @@ namespace CallAgain
             }
 
             return list;
-        }
-
-        private void DespawnReturningCargoTrucks(ushort buildingId, Building building)
-        {
-            if (building.Info?.m_buildingAI is CargoStationAI)
-            {
-                // Build list of vehicles to despawn
-                List<ushort> vehiclesToDespawn = new List<ushort>();
-                List<ushort> vehicles = CitiesUtils.GetOwnVehiclesForBuilding(buildingId);
-                foreach (ushort vehicleId in vehicles)
-                {
-                    Vehicle vehicle = VehicleManager.instance.m_vehicles.m_buffer[vehicleId];
-                    if ((vehicle.m_flags & Vehicle.Flags.GoingBack) == Vehicle.Flags.GoingBack &&
-                        (vehicle.Info != null && (vehicle.Info.m_vehicleAI is CargoTruckAI || vehicle.Info.m_vehicleAI is PostVanAI)))
-                    {
-                        vehiclesToDespawn.Add(vehicleId);
-                    }
-                }
-
-                if (vehiclesToDespawn.Count > 0)
-                {
-                    // Now despawn them
-                    var manager = Singleton<VehicleManager>.instance;
-                    foreach (ushort vehicleId in vehiclesToDespawn)
-                    {
-                        // Add action so it is thread safe
-#if DEBUG
-                        Debug.Log("Releasing vehicle: " + vehicleId);
-#endif
-                        // Create object on heap rather than stack to ensure it is still valid when ReleaseVehicle call occurs
-                        InstanceID vehicleInstance = new InstanceID { Vehicle = vehicleId };
-                        Singleton<SimulationManager>.instance.AddAction(() => 
-                            {
-                                Singleton<VehicleManager>.instance.ReleaseVehicle(vehicleInstance.Vehicle);
-                            }
-                        );
-                    }
-                }
-            } 
         }
     }
 }
