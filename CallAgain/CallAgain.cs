@@ -19,6 +19,10 @@ namespace CallAgain
         private Dictionary<ushort, CallAgainData> m_Deathcalls;
         private Dictionary<ushort, CallAgainData> m_Goodscalls;
         private Dictionary<ushort, CallAgainData> m_Garbagecalls;
+
+        private Dictionary<TransferReason, FastList<TransferOffer>> m_issueOutgoingList;
+        private Dictionary<TransferReason, FastList<TransferOffer>> m_issueIncomingList;
+
         TransferManagerCheckOffers m_checkOffers;
         Stopwatch m_watch;
 
@@ -29,6 +33,15 @@ namespace CallAgain
             m_Goodscalls = new Dictionary<ushort, CallAgainData>();
             m_Garbagecalls = new Dictionary<ushort, CallAgainData>();
             m_checkOffers = new TransferManagerCheckOffers();
+
+            // Create arrays to store offers
+            m_issueOutgoingList = new Dictionary<TransferReason, FastList<TransferOffer>>();
+            m_issueIncomingList = new Dictionary<TransferReason, FastList<TransferOffer>>();
+            m_issueOutgoingList[TransferReason.Sick] = new FastList<TransferOffer>();
+            m_issueOutgoingList[TransferReason.Dead] = new FastList<TransferOffer>();
+            m_issueOutgoingList[TransferReason.Garbage] = new FastList<TransferOffer>();
+            m_issueIncomingList[TransferReason.Goods] = new FastList<TransferOffer>();
+
             m_watch = Stopwatch.StartNew();
         }
 
@@ -37,45 +50,49 @@ namespace CallAgain
 #if DEBUG
             long lStartTime = m_watch.ElapsedMilliseconds;
 #endif
-            Dictionary<TransferReason, List<TransferOffer>> issueOutgoingList = new Dictionary<TransferReason, List<TransferOffer>>();
-            issueOutgoingList[TransferReason.Sick] = new List<TransferOffer>();
-            issueOutgoingList[TransferReason.Dead] = new List<TransferOffer>();
-            issueOutgoingList[TransferReason.Garbage] = new List<TransferOffer>();
-
-            Dictionary<TransferReason, List<TransferOffer>> issueIncomingList = new Dictionary<TransferReason, List<TransferOffer>>();
-            issueIncomingList[TransferReason.Goods] = new List<TransferOffer>();
+            // Clear arrays for next update.
+            m_issueOutgoingList[TransferReason.Sick].Clear();
+            m_issueOutgoingList[TransferReason.Dead].Clear();
+            m_issueOutgoingList[TransferReason.Garbage].Clear();
+            m_issueIncomingList[TransferReason.Goods].Clear();
 
             for (int i = 0; i < BuildingManager.instance.m_buildings.m_buffer.Length; i++)
             {
                 Building building = BuildingManager.instance.m_buildings.m_buffer[i];
-                
+
                 // Outgoing
-                issueOutgoingList[TransferReason.Sick].AddRange(CheckHealthTimer((ushort)i, building));
-                issueOutgoingList[TransferReason.Dead].AddRange(CheckDeathTimer((ushort)i, building));
-                issueOutgoingList[TransferReason.Garbage].AddRange(CheckGarbage((ushort)i, building, m_watch));
+                FastList<TransferOffer> sickList = m_issueOutgoingList[TransferReason.Sick];
+                CheckHealthTimer((ushort)i, building, ref sickList);
+
+                FastList<TransferOffer> deathList = m_issueOutgoingList[TransferReason.Dead];
+                CheckDeathTimer((ushort)i, building, ref deathList);
+
+                FastList<TransferOffer> garbageList = m_issueOutgoingList[TransferReason.Garbage];
+                CheckGarbage((ushort)i, building, m_watch, ref garbageList);
 
                 // Incoming
-                issueIncomingList[TransferReason.Goods].AddRange(CheckGoodsTimer((ushort)i, building));
+                FastList<TransferOffer> goodsList = m_issueIncomingList[TransferReason.Goods];
+                CheckGoodsTimer((ushort)i, building, ref goodsList);
             }
 
-            AddOutgoingOffersCheckExisting(issueOutgoingList);
-            AddIncomingOffersCheckExisting(issueIncomingList);
+            AddOutgoingOffersCheckExisting(m_issueOutgoingList);
+            AddIncomingOffersCheckExisting(m_issueIncomingList);
 #if DEBUG
             long lStopTime = m_watch.ElapsedMilliseconds;
             Debug.Log("CallAgain - Execution Time: " + (lStopTime - lStartTime) + "ms");
 #endif
         }
 
-        public void AddOutgoingOffersCheckExisting(Dictionary<TransferReason, List<TransferOffer>> issues)
+        public void AddOutgoingOffersCheckExisting(Dictionary<TransferReason, FastList<TransferOffer>> issues)
         {
-            if (issues != null)
+            if (issues.Count > 0)
             {
 #if DEBUG
                 string sMessage = "";
 #endif
-                foreach (KeyValuePair<TransferReason, List<TransferOffer>> issue in issues)
+                foreach (KeyValuePair<TransferReason, FastList<TransferOffer>> issue in issues)
                 {
-                    List<TransferOffer> offers = new List<TransferOffer>(issue.Value);
+                    FastList<TransferOffer> offers = issue.Value;
                     TransferReason material = issue.Key;
                     if (offers != null)
                     {
@@ -107,16 +124,16 @@ namespace CallAgain
             }
         }
 
-        public void AddIncomingOffersCheckExisting(Dictionary<TransferReason, List<TransferOffer>> issues)
+        public void AddIncomingOffersCheckExisting(Dictionary<TransferReason, FastList<TransferOffer>> issues)
         {
-            if (issues != null)
+            if (issues.Count > 0)
             {
 #if DEBUG
                 string sMessage = "";
 #endif
-                foreach (KeyValuePair<TransferReason, List<TransferOffer>> issue in issues)
+                foreach (KeyValuePair<TransferReason, FastList<TransferOffer>> issue in issues)
                 {
-                    List<TransferOffer> offers = issue.Value;
+                    FastList<TransferOffer> offers = issue.Value;
                     if (offers != null)
                     {
                         // Now check the transfer offers arent already in Transfer Manager before sending offers.
@@ -146,11 +163,10 @@ namespace CallAgain
             }
         }
 
-        public List<TransferOffer> CheckHealthTimer(ushort usBuilding, Building building)
+        public void CheckHealthTimer(ushort usBuilding, Building building, ref FastList<TransferOffer> list)
         {
-            List<TransferOffer> list = new List<TransferOffer>();
-
-            if (building.m_healthProblemTimer >= ModSettings.GetSettings().HealthcareThreshold)
+            if (building.m_healthProblemTimer >= ModSettings.GetSettings().HealthcareThreshold && 
+                Singleton<UnlockManager>.instance.Unlocked(ItemClass.Service.HealthCare))
             {
                 List<uint> cimSick = CitiesUtils.GetSickCitizens(usBuilding, building);
                 if (cimSick.Count > 0)
@@ -192,15 +208,12 @@ namespace CallAgain
             {
                 m_Healthcalls.Remove(usBuilding);
             }
-
-            return list;
         }
 
-        public List<TransferOffer> CheckDeathTimer(ushort usBuilding, Building building)
+        public void CheckDeathTimer(ushort usBuilding, Building building, ref FastList<TransferOffer> list)
         {
-            List <TransferOffer> list = new List<TransferOffer>();
-
-            if (building.m_deathProblemTimer >= ModSettings.GetSettings().DeathcareThreshold)
+            if (building.m_deathProblemTimer >= ModSettings.GetSettings().DeathcareThreshold &&
+                Singleton<UnlockManager>.instance.Unlocked(ItemClass.Service.HealthCare))
             {
                 List<uint> cimDead = CitiesUtils.GetDeadCitizens(usBuilding, building);
                 if (cimDead.Count > 0)
@@ -242,17 +255,12 @@ namespace CallAgain
             {
                 m_Deathcalls.Remove(usBuilding);
             }
-
-            return list;
         }
 
-        public List<TransferOffer> CheckGoodsTimer(ushort usBuilding, Building building)
+        public void CheckGoodsTimer(ushort usBuilding, Building building, ref FastList<TransferOffer> list)
         {
-            List<TransferOffer> list = new List<TransferOffer>();
-
             if (building.m_incomingProblemTimer >= ModSettings.GetSettings().GoodsThreshold)
             {
-                
                 // Only call again if there arent ambulances on the way? and we have passed call again rate
                 int iLastCallTimer = 0;
                 int iRetries = 0;
@@ -290,17 +298,13 @@ namespace CallAgain
             {
                 m_Goodscalls.Remove(usBuilding);
             }
-
-            return list;
         }
 
-        public List<TransferOffer> CheckGarbage(ushort usBuilding, Building building, Stopwatch watch)
+        public void CheckGarbage(ushort usBuilding, Building building, Stopwatch watch, ref FastList<TransferOffer> list)
         {
-            List<TransferOffer> list = new List<TransferOffer>();
-
-            if (building.m_garbageBuffer >= ModSettings.GetSettings().GarbageThreshold)
+            if (building.m_garbageBuffer >= ModSettings.GetSettings().GarbageThreshold &&
+                Singleton<UnlockManager>.instance.Unlocked(ItemClass.Service.Garbage))
             {
-
                 // Only call again if there arent ambulances on the way? and we have passed call again rate
                 int iLastCallTimer = 0;
                 int iRetries = 0;
@@ -310,7 +314,7 @@ namespace CallAgain
                     iRetries = m_Garbagecalls[usBuilding].m_iRetries;
                 }
 
-                // Call if no garbage trucks on the way and it has been GoodsRate since last time we called
+                // Call if no garbage trucks on the way and it has been GarbageRate since last time we called
                 if ((watch.ElapsedMilliseconds - iLastCallTimer) > ModSettings.GetSettings().GarbageRate * 1000 &&
                     !CitiesUtils.IsPedestrianZone(building) &&
                     CitiesUtils.GetGarbageTrucksOnRoute(usBuilding).Count == 0)
@@ -334,8 +338,6 @@ namespace CallAgain
             {
                 m_Garbagecalls.Remove(usBuilding);
             }
-
-            return list;
         }
     }
 }

@@ -28,9 +28,9 @@ namespace CallAgain
             m_incomingCount = (ushort[])incomingCountField.GetValue(manager);
         }
 
-        public void RemoveExisitingOutgoingOffers(TransferReason material, ref List<TransferOffer> newOutgoingOffers)
+        public void RemoveExisitingOutgoingOffers(TransferReason material, ref FastList<TransferOffer> offers)
         {
-            if (m_outgoingCount != null && m_outgoingOffers != null && newOutgoingOffers.Count > 0)
+            if (m_outgoingCount != null && m_outgoingOffers != null && offers.m_size > 0)
             {
                 List<TransferOffer> existing = new List<TransferOffer>();
 
@@ -45,7 +45,7 @@ namespace CallAgain
                         if (offer.Citizen != 0)
                         {
                             // Check against list of new offers
-                            foreach (TransferOffer offerSearch in newOutgoingOffers)
+                            foreach (TransferOffer offerSearch in offers)
                             {
                                 // Check if offer already exists
                                 if (offerSearch.m_object == offer.m_object)
@@ -53,7 +53,7 @@ namespace CallAgain
 #if DEBUG
                                     Debug.Log($"CALL AGAIN: Existing transfer offer {CallAgainUtils.DebugOffer(offer)} DETECTED");
 #endif
-                                    newOutgoingOffers.Remove(offer);
+                                    offers.Remove(offer);
                                     break;
                                 }
                             }
@@ -63,9 +63,9 @@ namespace CallAgain
             }
         }
 
-        public void RemoveExisitingIncomingOffers(TransferReason material, ref List<TransferOffer> newIncomingOffers)
+        public void RemoveExisitingIncomingOffers(TransferReason material, ref FastList<TransferOffer> offers)
         {
-            if (m_incomingCount != null && m_incomingOffers != null && newIncomingOffers.Count > 0)
+            if (m_incomingCount != null && m_incomingOffers != null && offers.m_size > 0)
             {
                 int material_offset = (int)material * 8;
                 int offer_offset;
@@ -78,7 +78,7 @@ namespace CallAgain
                         if (offer.Citizen != 0)
                         {
                             // Check against list of new offers
-                            foreach (TransferOffer offerSearch in newIncomingOffers)
+                            foreach (TransferOffer offerSearch in offers)
                             {
                                 // Check if offer already exists
                                 if (offerSearch.m_object == offer.m_object)
@@ -86,7 +86,7 @@ namespace CallAgain
 #if DEBUG
                                     Debug.Log($"CALL AGAIN: Existing transfer offer {CallAgainUtils.DebugOffer(offer)} DETECTED");
 #endif
-                                    newIncomingOffers.Remove(offer);
+                                    offers.Remove(offer);
                                     break;
                                 }
                             }

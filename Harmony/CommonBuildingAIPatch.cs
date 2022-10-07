@@ -10,7 +10,6 @@ namespace CallAgain.Patch
     [HarmonyPatch(typeof(CommonBuildingAI), "HandleSick")]
     public static class CommonBuildingAIPatch
     {
-        // There is a bug in AirportBuildingAI.HandleCrime that it never calls AddOutgoingOffer.
         [HarmonyPostfix]
         public static void HandleSick(ushort buildingID, ref Building buildingData, ref Citizen.BehaviourData behaviour, int citizenCount)
         {
