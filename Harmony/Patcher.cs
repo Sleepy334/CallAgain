@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using CallAgain.Patch;
 using HarmonyLib;
 using SleepyCommon;
 using UnityEngine;
@@ -31,10 +32,14 @@ namespace CallAgain
                 if (!DependencyUtilities.IsTransferManagerRunning())
                 {
                     // Patch offer bugs in main game
-                    patchList.Add(typeof(Patch.AirportBuildingAIPatch));
-                    patchList.Add(typeof(Patch.CommonBuildingAIPatch));
+                    patchList.Add(typeof(AirportBuildingAIPatch));
+
+                    // Monitor for needed sick offers
+                    patchList.Add(typeof(ResidentialBuildingAISimulationStepPatch));
                 }
 
+                patchList.Add(typeof(CommonBuildingAISimulationStepPatch));
+                
                 // Despawn returning trucks patches
                 patchList.Add(typeof(Patch.CargoTruckAISimulationStepPatch));
                 patchList.Add(typeof(Patch.PostVanAISimulationStepPatch)); 

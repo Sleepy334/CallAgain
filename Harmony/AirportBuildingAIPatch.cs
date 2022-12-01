@@ -14,13 +14,13 @@ namespace CallAgain.Patch
         {
             if (ModSettings.GetSettings().CallAgainEnabled)
             {
-                int crimeBuffer = (int)data.m_crimeBuffer;
-                if (citizenCount != 0 && crimeBuffer > citizenCount * 25 && 
-                    Singleton<UnlockManager>.instance.Unlocked(ItemClass.Service.PoliceDepartment) && 
-                    Singleton<SimulationManager>.instance.m_randomizer.Int32(5U) == 0)
+                if (Singleton<SimulationManager>.instance.m_randomizer.Int32(5U) == 0 &&
+                    citizenCount != 0 && 
+                    data.m_crimeBuffer > citizenCount * 15 && 
+                    Singleton<UnlockManager>.instance.Unlocked(ItemClass.Service.PoliceDepartment))
                 {
 #if DEBUG
-                    Debug.Log($"Adding crime request {buildingID}");
+                    Debug.Log($"Adding Crime request {buildingID}");
 #endif
                     int count = 0;
                     int cargo = 0;
@@ -31,7 +31,7 @@ namespace CallAgain.Patch
                     {
                         Singleton<TransferManager>.instance.AddOutgoingOffer(TransferManager.TransferReason.Crime, new TransferManager.TransferOffer()
                         {
-                            Priority = crimeBuffer / Mathf.Max(1, citizenCount * 10),
+                            Priority = data.m_crimeBuffer / Mathf.Max(1, citizenCount * 10),
                             Building = buildingID,
                             Position = data.m_position,
                             Amount = 1

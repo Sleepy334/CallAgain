@@ -1,7 +1,5 @@
-﻿using ColossalFramework.UI;
-using ICities;
+﻿using ICities;
 using SleepyCommon;
-using UnityEngine;
 
 namespace CallAgain
 {
@@ -33,16 +31,12 @@ namespace CallAgain
 
                 // Patch game using Harmony
                 ApplyHarmonyPatches();
-
-                CallAgainThread.StartThreads();
             }
         }
 
         public override void OnLevelUnloading()
         {
             base.OnLevelUnloading();
-
-            CallAgainThread.StopThreads();
         }
 
         public bool ApplyHarmonyPatches()

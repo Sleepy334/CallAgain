@@ -45,23 +45,11 @@ namespace CallAgain.Settings
             set;
         } = true;
 
-        public int CallAgainUpdateRate
-        {
-            get;
-            set;
-        } = 5;
-
         public int HealthcareThreshold
         {
             get;
             set;
         } = 30;
-
-        public int HealthcareRate
-        {
-            get;
-            set;
-        } = 5;
 
         public int DeathcareThreshold
         {
@@ -69,35 +57,17 @@ namespace CallAgain.Settings
             set;
         } = 40;
 
-        public int DeathcareRate
-        {
-            get;
-            set;
-        } = 5;
-
         public int GoodsThreshold
         {
             get;
             set;
         } = 40;
 
-        public int GoodsRate
-        {
-            get;
-            set;
-        } = 5;
-
         public int GarbageThreshold
         {
             get;
             set;
         } = 3000;
-
-        public int GarbageRate
-        {
-            get;
-            set;
-        } = 5;
 
         public bool DespawnReturningCargoTrucks
         {
