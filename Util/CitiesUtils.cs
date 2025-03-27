@@ -1,4 +1,5 @@
 using ColossalFramework;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using static TransferManager;
@@ -7,6 +8,45 @@ namespace CallAgain
 {
     public class CitiesUtils
     {
+        public delegate bool CitizenDelegate(uint citizenID, Citizen citizen); // Return true to continue loop
+        public delegate void CitizenUnitDelegate(uint citizenUnitId, CitizenUnit citizenUnit);
+
+        public static void EnumerateCitizens(InstanceID instance, uint citizenUnitId, CitizenDelegate func)
+        {
+            Citizen[] Citizens = Singleton<CitizenManager>.instance.m_citizens.m_buffer;
+            CitizenUnit[] CitizenUnits = Singleton<CitizenManager>.instance.m_units.m_buffer;
+
+            const int iMaxLength = 524288; // Used in assembly eg HandleDead.
+            int iLoopCount = 0;
+            while (citizenUnitId != 0)
+            {
+                CitizenUnit citizenUnit = CitizenUnits[citizenUnitId];
+                for (int i = 0; i < 5; ++i)
+                {
+                    uint cim = citizenUnit.GetCitizen(i);
+                    if (cim != 0)
+                    {
+                        Citizen citizen = Citizens[cim];
+
+                        // Call delegate for citizen
+                        if (!func(cim, citizen))
+                        {
+                            return;
+                        }
+                    }
+                }
+
+                citizenUnitId = citizenUnit.m_nextUnit;
+
+                // Check for bad list
+                if (++iLoopCount > iMaxLength)
+                {
+                    CODebugBase<LogChannel>.Error(LogChannel.Core, $"Invalid list detected - {instance.Type.ToString() + ": " + instance.Index}\n" + Environment.StackTrace);
+                    break;
+                }
+            }
+        }
+
         public static void CalculateGuestVehicles(ushort buildingID, ref Building data, TransferManager.TransferReason material, ref int count, ref int cargo, ref int capacity, ref int outside)
         {
             VehicleManager instance = Singleton<VehicleManager>.instance;
@@ -74,6 +114,26 @@ namespace CallAgain
             }
 
             return cimSick;
+        }
+
+        public static List<uint> GetSickWithoutVehicles(ushort usBuildingId, Building building)
+        {
+            Vehicle[] vehicles = VehicleManager.instance.m_vehicles.m_buffer;
+
+            List<uint> cimList = new List<uint>();
+            EnumerateCitizens(new InstanceID { Building = usBuildingId }, building.m_citizenUnits, (citizendId, citizen) =>
+            {
+                // Check if this citizen has an ambulance on the way. It's assigned to the citizen as it's vehicle.
+                if (citizen.Sick && citizen.GetBuildingByLocation() == usBuildingId && citizen.m_vehicle == 0)
+                {
+                    // No assigned vehicle add cim
+                    cimList.Add(citizendId);
+                }
+
+                return true; // continue loop
+            });
+
+            return cimList;
         }
 
         public static List<uint> GetDeadCitizens(ushort usBuildingId, Building building)

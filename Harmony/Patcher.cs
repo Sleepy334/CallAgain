@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using CallAgain.Patch;
 using HarmonyLib;
 using SleepyCommon;
-using UnityEngine;
 
 namespace CallAgain
 {
@@ -34,8 +33,15 @@ namespace CallAgain
                     // Patch offer bugs in main game
                     patchList.Add(typeof(AirportBuildingAIPatch));
 
+                    // Patch ResidentAI.FindHospital.
+                    patchList.Add(typeof(ResidentAIFindHospital));
+
                     // Monitor for needed sick offers
                     patchList.Add(typeof(ResidentialBuildingAISimulationStepPatch));
+                }
+                else
+                {
+                    Debug.Log("Transfer Manager CE detected, some patches have been skipped.");
                 }
 
                 patchList.Add(typeof(CommonBuildingAISimulationStepPatch));
@@ -55,10 +61,6 @@ namespace CallAgain
                         harmony.CreateClassProcessor(patchType).Patch();
                     }
                     Debug.Log(sMessage);
-                }
-                else
-                {
-                    Debug.Log("Transfer Manager CE detected, no patches performed.");
                 }
             }
         }

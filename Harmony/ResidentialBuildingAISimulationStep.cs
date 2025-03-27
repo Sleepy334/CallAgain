@@ -16,47 +16,29 @@ namespace CallAgain.Patch
         [HarmonyPatch(typeof(ResidentialBuildingAI), "SimulationStepActive")]
         public static void SimulationStepActive(ushort buildingID, ref Building buildingData, ref Building.Frame frameData)
         {
-            if (ModSettings.GetSettings().CallAgainEnabled)
+            if (ModSettings.GetSettings().CallAgainEnabled &&
+                buildingData.m_healthProblemTimer > ModSettings.GetSettings().HealthcareThreshold &&
+                Singleton<SimulationManager>.instance.m_randomizer.Int32(5U) == 0 &&
+                Singleton<UnlockManager>.instance.Unlocked(ItemClass.Service.HealthCare))
             {
-                if (buildingData.m_healthProblemTimer > ModSettings.GetSettings().HealthcareThreshold &&
-                    Singleton<SimulationManager>.instance.m_randomizer.Int32(5U) == 0 &&
-                    Singleton<UnlockManager>.instance.Unlocked(ItemClass.Service.HealthCare))
-                {
-                    List<uint> cimSick = CitiesUtils.GetCitizens(buildingID, buildingData, Citizen.Flags.Sick);
-                    AddSickOffers(buildingID, ref buildingData, cimSick);
-                }
+                AddSickOffers(buildingID, ref buildingData);
             }
         }
 
-        public static void AddSickOffers(ushort buildingID, ref Building buildingData, List<uint> sickCitizens)
+        public static void AddSickOffers(ushort buildingID, ref Building buildingData)
         {
             bool bNaturalDisasters = DependencyUtilities.IsNaturalDisastersDLC();
-            int sickCount = sickCitizens.Count;
-            int count = 0;
-            int cargo = 0;
-            int capacity = 0;
-            int outside = 0;
 
-            // Ambulances
-            CitiesUtils.CalculateGuestVehicles(buildingID, ref buildingData, TransferReason.Sick, ref count, ref cargo, ref capacity, ref outside);
-            sickCount -= capacity;
-
-            // Medical helicopters
-            if (bNaturalDisasters)
-            {
-                CitiesUtils.CalculateGuestVehicles(buildingID, ref buildingData, TransferReason.Sick2, ref count, ref cargo, ref capacity, ref outside);
-                sickCount -= capacity;
-            }
-
-            if (sickCount > 0)
+            List<uint> cimSick = CitiesUtils.GetSickWithoutVehicles(buildingID, buildingData);
+            if (cimSick.Count > 0)
             {
                 // Select only 1 random sick citizen to request at a time so it is more realistic.
                 // Otherwise we end up with dozens of ambulances showing up at the same time which looks crap.
-                int iCitizen = Singleton<SimulationManager>.instance.m_randomizer.Int32((uint)sickCitizens.Count);
-                uint citizenId = sickCitizens[iCitizen];
+                int iCitizen = Singleton<SimulationManager>.instance.m_randomizer.Int32((uint)cimSick.Count);
+                uint citizenId = cimSick[iCitizen];
 
                 TransferOffer offer = default(TransferOffer);
-                offer.Priority = buildingData.m_healthProblemTimer * 7 / 128;
+                offer.Priority = buildingData.m_healthProblemTimer * 7 / 96;
                 offer.Citizen = citizenId;
                 offer.Position = buildingData.m_position;
                 offer.Amount = 1;
@@ -104,7 +86,7 @@ namespace CallAgain.Patch
                     material = TransferReason.Sick;
                 }
 #if DEBUG
-                Debug.Log($"Adding sick offer for building: {buildingID}");
+                Debug.Log($"Adding sick offer for building: {buildingID} Citizen: {citizenId}.");
 #endif
                 // Remove exisiting offer if any
                 Singleton<TransferManager>.instance.RemoveOutgoingOffer(material, offer);
